@@ -17,7 +17,7 @@ cursor = conn.cursor()
 drop_table_query = "DROP TABLE IF EXISTS Files"
 cursor.execute(drop_table_query)
 
-# Create new table
+# Create new table with indexes
 create_table_query = """
 CREATE TABLE Files (
     id INT NOT NULL AUTO_INCREMENT,
@@ -28,14 +28,15 @@ CREATE TABLE Files (
     readable BOOLEAN,
     file_content_text LONGTEXT,
     PRIMARY KEY (id),
-    UNIQUE KEY unique_path (full_path)
+    UNIQUE KEY unique_path (full_path),
+    INDEX idx_file_name (file_name),
+    FULLTEXT INDEX idx_file_content_text (file_content_text)
 )
 """
 cursor.execute(create_table_query)
 
 # Commit the changes
 conn.commit()
-
 
 # Function to traverse directory and insert file metadata and content
 def traverse_directory(directory):
@@ -71,14 +72,17 @@ traverse_directory(root_directory)
 
 # Function to search for a string in files
 def search_files(search_string):
-    search_query = "SELECT full_path, file_type, file_content_text FROM Files WHERE file_name LIKE %s OR file_content_text LIKE %s"
-    cursor.execute(search_query, ('%' + search_string + '%', '%' + search_string + '%'))
+    search_query = """
+    SELECT full_path, file_type, file_content_text
+    FROM Files
+    WHERE file_name LIKE %s OR MATCH(file_content_text) AGAINST(%s IN NATURAL LANGUAGE MODE)
+    """
+    cursor.execute(search_query, ('%' + search_string + '%', search_string))
     results = cursor.fetchall()
     return results
 
 # Input search string
 search_string = input("Enter search string: ")
-
 
 # Search for files
 search_results = search_files(search_string)
@@ -90,15 +94,12 @@ if search_results:
     print("Search results:")
     for result in search_results:
         full_path, file_type , file_content_text = result
-        occurrences = file_content_text.lower().count(search_string.lower())
+        occurrences = file_content_text.lower().count(search_string.lower()) if file_content_text else 0
         occurrencesINname = full_path.lower().count(search_string.lower())
 
         print(f"File path: {full_path} | File type: {file_type} | count in file name : {occurrencesINname} | count in files: {occurrences}")
 else:
     print("No matching files found.")
-
-
-
 
 # Close database connection
 cursor.close()

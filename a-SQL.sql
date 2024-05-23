@@ -10,5 +10,7 @@ CREATE TABLE `files` (
   `readable` boolean,
   `file_content_text` longtext,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_path` (`full_path`)
-)
+  UNIQUE KEY `unique_path` (`full_path`),
+  INDEX `idx_file_name` (`file_name`),
+  FULLTEXT INDEX `idx_file_content_text` (`file_content_text`)
+);
